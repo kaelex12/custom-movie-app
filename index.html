@@ -7,35 +7,68 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <header class="hero">
+    <div class="hero__content">
+      <p class="eyebrow">Movie Discovery</p>
+      <h1>Custom Movie App</h1>
+      <p class="hero__copy">Browse what is in theaters, switch to popular titles, and search TMDb without leaving the page.</p>
 
-<header>
-  <h1>Custom Movie App 🎬</h1>
-  <nav>
-    <button id="nowPlayingBtn" class="active">Now Playing</button>
-    <button id="popularBtn">Popular</button>
-  </nav>
-  <div class="search">
-    <input type="text" id="searchInput" placeholder="Search movies...">
-    <button id="searchBtn">Search</button>
+      <div class="controls" aria-label="Movie controls">
+        <nav class="tabs" aria-label="Movie categories">
+          <button id="nowPlayingBtn" class="tab active" type="button">Now Playing</button>
+          <button id="popularBtn" class="tab" type="button">Popular</button>
+        </nav>
+
+        <div class="search" role="search">
+          <label class="sr-only" for="searchInput">Search movies</label>
+          <input type="text" id="searchInput" placeholder="Search movies by title">
+          <button id="searchBtn" type="button">Search</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <section class="section-head">
+      <div>
+        <p class="section-head__eyebrow">Live Catalog</p>
+        <h2 id="resultsTitle">Now Playing</h2>
+      </div>
+      <p id="resultsMeta" class="section-head__meta">Loading movies...</p>
+    </section>
+
+    <div id="statusMessage" class="status-message" role="status" aria-live="polite"></div>
+    <section id="movies" class="movies" aria-live="polite"></section>
+  </main>
+
+  <div id="modal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <button id="closeModal" class="modal-close" type="button" aria-label="Close details">&times;</button>
+      <div class="modal-grid">
+        <img id="modalPoster" src="" alt="">
+        <div class="modal-copy">
+          <p id="modalTagline" class="modal-tagline"></p>
+          <h3 id="modalTitle"></h3>
+          <p id="modalOverview" class="modal-overview"></p>
+          <dl class="meta-list">
+            <div>
+              <dt>Release date</dt>
+              <dd id="modalDate"></dd>
+            </div>
+            <div>
+              <dt>Rating</dt>
+              <dd id="modalRating"></dd>
+            </div>
+            <div>
+              <dt>Language</dt>
+              <dd id="modalLanguage"></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </div>
   </div>
-</header>
 
-<main>
-  <div id="movies" class="movies"></div>
-</main>
-
-<!-- Movie Details Modal -->
-<div id="modal" class="modal">
-  <div class="modal-content">
-    <span id="closeModal">&times;</span>
-    <img id="modalPoster" src="" alt="">
-    <h2 id="modalTitle"></h2>
-    <p id="modalOverview"></p>
-    <p><strong>Release Date:</strong> <span id="modalDate"></span></p>
-    <p><strong>Rating:</strong> <span id="modalRating"></span>/10</p>
-  </div>
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

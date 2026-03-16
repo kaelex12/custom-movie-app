@@ -1,91 +1,211 @@
-const API_KEY = '08af22ea8de3ace1784da78f4764bbdb'; // Replace with your TMDb key
-const BASE_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+const API_KEY = "08af22ea8de3ace1784da78f4764bbdb";
+const BASE_URL = "https://api.themoviedb.org/3";
+const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const FALLBACK_POSTER = "https://via.placeholder.com/500x750/1b1b1b/f3efe6?text=No+Poster";
 
-const moviesContainer = document.getElementById('movies');
-const nowPlayingBtn = document.getElementById('nowPlayingBtn');
-const popularBtn = document.getElementById('popularBtn');
-const searchInput = document.getElementById('searchInput');
-const searchBtn = document.getElementById('searchBtn');
+const moviesContainer = document.getElementById("movies");
+const statusMessage = document.getElementById("statusMessage");
+const resultsTitle = document.getElementById("resultsTitle");
+const resultsMeta = document.getElementById("resultsMeta");
+const nowPlayingBtn = document.getElementById("nowPlayingBtn");
+const popularBtn = document.getElementById("popularBtn");
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
 
-// Modal elements
-const modal = document.getElementById('modal');
-const closeModal = document.getElementById('closeModal');
-const modalPoster = document.getElementById('modalPoster');
-const modalTitle = document.getElementById('modalTitle');
-const modalOverview = document.getElementById('modalOverview');
-const modalDate = document.getElementById('modalDate');
-const modalRating = document.getElementById('modalRating');
+const modal = document.getElementById("modal");
+const closeModal = document.getElementById("closeModal");
+const modalPoster = document.getElementById("modalPoster");
+const modalTagline = document.getElementById("modalTagline");
+const modalTitle = document.getElementById("modalTitle");
+const modalOverview = document.getElementById("modalOverview");
+const modalDate = document.getElementById("modalDate");
+const modalRating = document.getElementById("modalRating");
+const modalLanguage = document.getElementById("modalLanguage");
 
-// Fetch movies
-async function fetchMovies(endpoint) {
+let currentView = "now_playing";
+
+function getMoviePoster(path) {
+  return path ? `${IMAGE_BASE}${path}` : FALLBACK_POSTER;
+}
+
+function formatDate(dateString) {
+  if (!dateString) {
+    return "Unknown";
+  }
+
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatRating(value) {
+  return typeof value === "number" ? `${value.toFixed(1)}/10` : "Not rated";
+}
+
+function setStatus(message = "", type = "") {
+  statusMessage.textContent = message;
+  statusMessage.className = `status-message${type ? ` status-message--${type}` : ""}`;
+}
+
+function setActiveTab(activeButton) {
+  [nowPlayingBtn, popularBtn].forEach((button) => {
+    button.classList.toggle("active", button === activeButton);
+  });
+}
+
+function updateResultsMeta(count, label) {
+  resultsTitle.textContent = label;
+  resultsMeta.textContent = count === 1 ? "1 movie found" : `${count} movies found`;
+}
+
+async function requestMovies(endpoint, params = {}) {
+  const url = new URL(`${BASE_URL}${endpoint}`);
+  url.searchParams.set("api_key", API_KEY);
+  url.searchParams.set("language", "en-US");
+  url.searchParams.set("page", "1");
+
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data.results) ? data.results : [];
+}
+
+async function loadMovies(endpoint, label, params = {}) {
+  setStatus("Loading movies...", "loading");
+  moviesContainer.innerHTML = "";
+  resultsTitle.textContent = label;
+  resultsMeta.textContent = "Fetching live data";
+
   try {
-    const res = await fetch(`${BASE_URL}${endpoint}?api_key=${API_KEY}&language=en-US&page=1`);
-    const data = await res.json();
-    displayMovies(data.results);
-  } catch (err) {
-    console.error('Error fetching movies:', err);
-    moviesContainer.innerHTML = '<p>Failed to load movies.</p>';
+    const movies = await requestMovies(endpoint, params);
+    displayMovies(movies);
+    updateResultsMeta(movies.length, label);
+
+    if (!movies.length) {
+      setStatus("No movies matched this view.", "empty");
+    } else {
+      setStatus("");
+    }
+  } catch (error) {
+    console.error("Movie request failed:", error);
+    resultsMeta.textContent = "Unable to reach the movie service";
+    setStatus("Failed to load movies. Check the API key or network access.", "error");
   }
 }
 
-// Search movies
-async function searchMovies(query) {
-  if (!query) return;
-  try {
-    const res = await fetch(`${BASE_URL}/search/movie?api_key=${API_KEY}&query=${query}&language=en-US&page=1`);
-    const data = await res.json();
-    displayMovies(data.results);
-  } catch (err) {
-    console.error('Error searching movies:', err);
-    moviesContainer.innerHTML = '<p>Search failed.</p>';
-  }
-}
-
-// Display movies
 function displayMovies(movies) {
-  moviesContainer.innerHTML = '';
-  movies.forEach(movie => {
-    const poster = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : 'https://via.placeholder.com/200x300?text=No+Image';
-    const movieEl = document.createElement('div');
-    movieEl.className = 'movie';
+  moviesContainer.innerHTML = "";
+
+  movies.forEach((movie) => {
+    const movieEl = document.createElement("article");
+    movieEl.className = "movie";
+    movieEl.tabIndex = 0;
+    movieEl.setAttribute("role", "button");
+    movieEl.setAttribute("aria-label", `View details for ${movie.title}`);
+
     movieEl.innerHTML = `
-      <img src="${poster}" alt="${movie.title}">
-      <h3>${movie.title}</h3>
+      <div class="movie__poster-wrap">
+        <img src="${getMoviePoster(movie.poster_path)}" alt="${movie.title}">
+        <span class="movie__rating">${formatRating(movie.vote_average)}</span>
+      </div>
+      <div class="movie__body">
+        <p class="movie__date">${formatDate(movie.release_date)}</p>
+        <h3>${movie.title}</h3>
+        <p class="movie__overview">${movie.overview || "No overview available."}</p>
+      </div>
     `;
-    movieEl.addEventListener('click', () => showModal(movie));
+
+    const openMovie = () => showModal(movie);
+    movieEl.addEventListener("click", openMovie);
+    movieEl.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openMovie();
+      }
+    });
+
     moviesContainer.appendChild(movieEl);
   });
 }
 
-// Modal functions
 function showModal(movie) {
-  modalPoster.src = movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : '';
+  modalPoster.src = getMoviePoster(movie.poster_path);
+  modalPoster.alt = movie.title;
+  modalTagline.textContent = movie.original_title && movie.original_title !== movie.title ? movie.original_title : "Movie details";
   modalTitle.textContent = movie.title;
-  modalOverview.textContent = movie.overview;
-  modalDate.textContent = movie.release_date;
-  modalRating.textContent = movie.vote_average;
-  modal.style.display = 'block';
+  modalOverview.textContent = movie.overview || "No overview available.";
+  modalDate.textContent = formatDate(movie.release_date);
+  modalRating.textContent = formatRating(movie.vote_average);
+  modalLanguage.textContent = movie.original_language ? movie.original_language.toUpperCase() : "Unknown";
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
 }
 
-closeModal.onclick = () => modal.style.display = 'none';
-window.onclick = e => { if (e.target == modal) modal.style.display = 'none'; }
+function closeMovieModal() {
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
 
-// Event listeners
-nowPlayingBtn.addEventListener('click', () => {
-  fetchMovies('/movie/now_playing');
-  nowPlayingBtn.classList.add('active');
-  popularBtn.classList.remove('active');
+function runNowPlaying() {
+  currentView = "now_playing";
+  setActiveTab(nowPlayingBtn);
+  loadMovies("/movie/now_playing", "Now Playing");
+}
+
+function runPopular() {
+  currentView = "popular";
+  setActiveTab(popularBtn);
+  loadMovies("/movie/popular", "Popular Movies");
+}
+
+function runSearch() {
+  const query = searchInput.value.trim();
+  if (!query) {
+    setStatus("Enter a movie title to search.", "empty");
+    return;
+  }
+
+  currentView = "search";
+  setActiveTab(null);
+  loadMovies("/search/movie", `Search: ${query}`, { query });
+}
+
+closeModal.addEventListener("click", closeMovieModal);
+modal.addEventListener("click", (event) => {
+  if (event.target === modal) {
+    closeMovieModal();
+  }
 });
 
-popularBtn.addEventListener('click', () => {
-  fetchMovies('/movie/popular');
-  popularBtn.classList.add('active');
-  nowPlayingBtn.classList.remove('active');
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && modal.classList.contains("is-open")) {
+    closeMovieModal();
+  }
 });
 
-searchBtn.addEventListener('click', () => searchMovies(searchInput.value));
-searchInput.addEventListener('keyup', e => { if (e.key === 'Enter') searchMovies(searchInput.value); });
+nowPlayingBtn.addEventListener("click", runNowPlaying);
+popularBtn.addEventListener("click", runPopular);
+searchBtn.addEventListener("click", runSearch);
+searchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    runSearch();
+  }
+});
 
-// Initial load
-fetchMovies('/movie/now_playing');
+runNowPlaying();
